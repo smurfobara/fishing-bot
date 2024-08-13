@@ -9,13 +9,16 @@ import sqlite3
 import re 
 from datetime import *
 
-from selenium import webdriver
-from selenium.webdriver.chrome.options import Options
-from chromedriver_py import binary_path
-from selenium.webdriver.common.by import By
-path_ = webdriver.ChromeService(executable_path=binary_path)
-options = Options()
-options.add_argument("--headless=new")
+#from selenium import webdriver
+#from selenium.webdriver.chrome.options import Options
+#from chromedriver_py import binary_path
+#from selenium.webdriver.common.by import By
+#path_ = webdriver.ChromeService(executable_path=binary_path)
+#options = Options()
+#options.add_argument("--headless=new")
+import requests
+from bs4 import BeautifulSoup
+
 db = sqlite3.connect('base.db')
 c = db.cursor()
 
@@ -116,13 +119,10 @@ async def answerYes(message: Message, state: FSMContext):
 async def showbaseCmd(message: Message):
     if int(c.execute(f'SELECT is_admin FROM baseusers WHERE user_id = {message.from_user.id}').fetchone()[0]) == 1:
         await message.answer(str(c.execute('SELECT * FROM baseusers').fetchall()))
-br = webdriver.Chrome(service=path_)
-br.get('https://our.fishing/blog')
 
-last_article = br.find_element(By.XPATH, "(//div[@class='card-block-info'])[1]").text
-br.close()
+last_article = ''
 
-new_article = None
+new_article = ''
 
 
 
@@ -131,6 +131,8 @@ async def getmessageforusers(message: Message, state: FSMContext):
     if int(c.execute(f'SELECT is_admin FROM baseusers WHERE user_id = {message.from_user.id}').fetchone()[0]) == 1:
         await message.answer('Напишите ваше сообщение для пользователей, если нужно отменить операцию, введите 0\nМожно использовать теги HTML')
         await state.set_state(messageToUsers.getMessage)
+
+
 
 @router.message(messageToUsers.getMessage, F.text)
 async def sendingtousers(message: Message, state: FSMContext):
@@ -152,72 +154,106 @@ async def sendingtousers(message: Message, state: FSMContext):
             await message.answer(f'ERROR!\n\n{ex}')
             print(ex)
             await state.clear()
-
-
+code = ''
+try:
+    url = 'https://our.fishing/blog/'
+    response = requests.get(url)
+    # Проверяем, что запрос успешен (статус-код 200)
+    print(response.status_code)
+    if response.status_code == 200:
+        code = response.text
+    else:
+        print(f"Ошибка: статус-код {response.status_code}")
+        print(f"Ошибка запроса: {e}")
+    soup = BeautifulSoup(response.content, 'html.parser')
+    last_article = soup.find('div', class_='card-block-info').find('h5').text.strip()
+except Exception as ex:
+    print(ex)
+@router.message(Command('update', prefix='$'))
 async def updating(message: Message):
     if int(c.execute(f'SELECT is_admin FROM baseusers WHERE user_id = {message.from_user.id}').fetchone()[0]) == 1:
         global last_article
         global new_article
+        code = ''
+        autor = ''
+        link = ''
+        new_article_el = None
         try:
-            br = webdriver.Chrome(service=path_)
-            br.get('https://our.fishing/blog')
-            article_element = br.find_element(By.XPATH, "(//div[@class='card-block-info'])[1]")
-            new_article = article_element.text
-            article_link = br.find_element(By.XPATH, "//div[@class='card-block-info']//a[1]").get_attribute('href')
-            if new_article != last_article:
+            response = requests.get(url)
+            # Проверяем, что запрос успешен (статус-код 200)
+            if response.status_code == 200:
+                print('starting check')
+                code = response.text
+                soup = BeautifulSoup(response.content, 'html.parser')
+                new_article = soup.find('div', class_='card-block-info').find('h5').text
+                new_article_el = soup.find('div', class_='card-block-info').find('h5')
+                if new_article != last_article:
                     print(f"New article detected: {new_article}")
+                    autor = soup.find('div', class_='info-right-img').find('span', class_='font-sm font-bold color-brand-1 op-70').text.strip()
+                    link = new_article_el.find('a').get('href')
                     last_article = new_article
-                    lines = last_article.splitlines()
-                    head, autor, date, likes = lines
                     IDs = c.execute('SELECT user_id FROM baseusers WHERE user_accept = 1').fetchall()
+                    autor = ' '.join(autor.split())
                     print(IDs)
                     for user in IDs:
-                         await message.bot.send_message(int(user[0]), f'Новая статья "{head}" от {autor}!\nПерейти к статье: {article_link}')
-            else:
+                        await message.bot.send_message(int(user[0]),f'Новая статья "{new_article}" от {autor}!\nПерейти к статье: https://our.fishing/blog/{link}')
+                    await message.answer('Сообщение разослано!')
+                else:
                     print("No new article detected.")
-        except Exception as e:
-            print(f"An error occurred: {e}")
-        finally:
-            br.close()
+            else:
+                print(f"Ошибка: статус-код {response.status_code}")
 
-@router.message(Command('update', prefix='$'))
+        except Exception as ex:
+            print(ex)
+
 @router.channel_post()
 async def updatingSched(message: Message):
-    #if int(c.execute(f'SELECT is_admin FROM baseusers WHERE user_id = {message.from_user.id}').fetchone()[0]) == 1:
-        global last_article
-        global new_article
-        try:
-            br = webdriver.Chrome(service=path_)
-            br.get('https://our.fishing/blog')
-            article_element = br.find_element(By.XPATH, "(//div[@class='card-block-info'])[1]")
-            new_article = article_element.text
-            article_link = br.find_element(By.XPATH, "//div[@class='card-block-info']//a[1]").get_attribute('href')
+    global last_article
+    global new_article
+    code = ''
+    autor = ''
+    link = ''
+    new_article_el = None
+    try:
+        response = requests.get(url)
+        # Проверяем, что запрос успешен (статус-код 200)
+        if response.status_code == 200:
+            print('starting check')
+            code = response.text
+            soup = BeautifulSoup(response.content, 'html.parser')
+            new_article = soup.find('div', class_='card-block-info').find('h5').text
+            new_article_el = soup.find('div', class_='card-block-info').find('h5')
             if new_article != last_article:
-                    print(f"New article detected: {new_article}")
-                    last_article = new_article
-                    lines = last_article.splitlines()
-                    head, autor, date, likes = lines
-                    IDs = c.execute('SELECT user_id FROM baseusers WHERE user_accept = 1').fetchall()
-                    print(IDs)
-                    for user in IDs:
-                         await message.bot.send_message(int(user[0]), f'Новая статья "{head}" от {autor}!\nПерейти к статье: {article_link}')
+                print(f"New article detected: {new_article}")
+                autor = soup.find('div', class_='info-right-img').find('span',
+                                                                       class_='font-sm font-bold color-brand-1 op-70').text.strip()
+                link = new_article_el.find('a').get('href')
+                last_article = new_article
+                IDs = c.execute('SELECT user_id FROM baseusers WHERE user_accept = 1').fetchall()
+                autor = ' '.join(autor.split())
+                print(IDs)
+                for user in IDs:
+                    await message.bot.send_message(int(user[0]),
+                                                   f'Новая статья "{new_article}" от {autor}!\nПерейти к статье: https://our.fishing/blog/{link}')
             else:
-                    print("No new article detected.")
-        except Exception as e:
-            print(f"An error occurred: {e}")
-        finally:
-            br.close()
+                print("No new article detected.")
+        else:
+            print(f"Ошибка: статус-код {response.status_code}")
+
+    except Exception as ex:
+        print(ex)
+
+
+id_of_new_adm = 0
 @router.message(Command('makeadmin', prefix='$'))
 async def set_new_admin(message: Message, state: FSMContext):
     if int(c.execute(f'SELECT is_admin FROM baseusers WHERE user_id = {message.from_user.id}').fetchone()[0]) == 1:
         await message.answer('Введите юзернэйм аккаунта, которого нужно сделать/убрать админом БЕЗ СОБАЧКИ!!!\nАккаунт должен был когда-либо прописать /start в боте.')
         await state.set_state(makingNewAdmin.getUsername)
-
-
-id_of_new_adm = 0
 @router.message(makingNewAdmin.getUsername, F.text)
 async def set_new_admin_main(message: Message, state: FSMContext):
     global id_of_new_adm
+    action = ''
     username = ''
     username = message.text
     if '@' in username:
@@ -228,7 +264,12 @@ async def set_new_admin_main(message: Message, state: FSMContext):
         name_and_surname_of_new_adm = name_and_surname_of_new_adm + ' '
         name_and_surname_of_new_adm = name_and_surname_of_new_adm + c.execute(f'SELECT surname FROM baseusers WHERE username = ?', (username,)).fetchone()[0]
         id_of_new_adm = c.execute(f'SELECT user_id FROM baseusers WHERE username = ?', (username,)).fetchone()[0]
-        await message.answer(f'Вы уверены, что хотите дать/убрать права админа {str(name_and_surname_of_new_adm)}, с id аккаунта {str(id_of_new_adm)}', reply_markup=kb.acceptKeyboard)
+        if int(c.execute(f'SELECT is_admin FROM baseusers WHERE user_id = {int(id_of_new_adm)}').fetchone()[0]) == 0:
+            action = 'дать'
+        else:
+            action = 'убрать'
+
+        await message.answer(f'Вы уверены, что хотите {action} права админа {str(name_and_surname_of_new_adm)}, с id аккаунта {str(id_of_new_adm)}', reply_markup=kb.acceptKeyboard)
         await state.set_state(makingNewAdmin.approving)
 
 @router.message(makingNewAdmin.approving, F.text == 'Да')

@@ -10,10 +10,10 @@ scheduler = sched.scheduler(time.time, time.sleep)
 
 
 def print_message():
-    pass
+    print('working')
     bot.send_message(-1002192441889, 'new update')
-    # Планируем следующее выполнение через 2 минуты
-    scheduler.enter(120, 1, print_message)
+    # Планируем следующее выполнение через 1 минуту
+    scheduler.enter(60, 1, print_message)
 # Планируем первое выполнение через 2 минуты
 scheduler.enter(1, 1, print_message)
 
