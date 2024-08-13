@@ -192,12 +192,12 @@ async def updating(message: Message):
                     autor = soup.find('div', class_='info-right-img').find('span', class_='font-sm font-bold color-brand-1 op-70').text.strip()
                     link = new_article_el.find('a').get('href')
                     last_article = new_article
-                    IDs = c.execute('SELECT user_id FROM baseusers WHERE user_accept = 1').fetchall()
+                    #IDs = c.execute('SELECT user_id FROM baseusers WHERE user_accept = 1').fetchall()
                     autor = ' '.join(autor.split())
-                    print(IDs)
-                    for user in IDs:
-                        await message.bot.send_message(int(user[0]),f'Новая статья "{new_article}" от {autor}!\nПерейти к статье: https://our.fishing/blog/{link}')
-                    await message.answer('Сообщение разослано!')
+                    #print(IDs)
+                    #for user in IDs:
+                    await message.bot.send_message(-1002246594000,f'Вышла новая статья "{new_article}"\n от {autor}!\nЧитать: https://our.fishing/blog/{link}')
+                    await message.answer('Готово!')
                 else:
                     print("No new article detected.")
             else:
@@ -206,7 +206,7 @@ async def updating(message: Message):
         except Exception as ex:
             print(ex)
 
-@router.channel_post()
+@router.channel_post(F.text == 'update')
 async def updatingSched(message: Message):
     global last_article
     global new_article
@@ -225,16 +225,14 @@ async def updatingSched(message: Message):
             new_article_el = soup.find('div', class_='card-block-info').find('h5')
             if new_article != last_article:
                 print(f"New article detected: {new_article}")
-                autor = soup.find('div', class_='info-right-img').find('span',
-                                                                       class_='font-sm font-bold color-brand-1 op-70').text.strip()
+                autor = soup.find('div', class_='info-right-img').find('span', class_='font-sm font-bold color-brand-1 op-70').text.strip()
                 link = new_article_el.find('a').get('href')
                 last_article = new_article
-                IDs = c.execute('SELECT user_id FROM baseusers WHERE user_accept = 1').fetchall()
+                # IDs = c.execute('SELECT user_id FROM baseusers WHERE user_accept = 1').fetchall()
                 autor = ' '.join(autor.split())
-                print(IDs)
-                for user in IDs:
-                    await message.bot.send_message(int(user[0]),
-                                                   f'Новая статья "{new_article}" от {autor}!\nПерейти к статье: https://our.fishing/blog/{link}')
+                # print(IDs)
+                # for user in IDs:
+                await message.bot.send_message(-1002246594000, f'Новая статья "{new_article}"\nот {autor}!\nПерейти к статье: https://our.fishing/blog/{link}')
             else:
                 print("No new article detected.")
         else:
