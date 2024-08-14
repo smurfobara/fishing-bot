@@ -9,15 +9,16 @@ import sqlite3
 import re 
 from datetime import *
 
-#from selenium import webdriver
-#from selenium.webdriver.chrome.options import Options
-#from chromedriver_py import binary_path
-#from selenium.webdriver.common.by import By
-#path_ = webdriver.ChromeService(executable_path=binary_path)
-#options = Options()
-#options.add_argument("--headless=new")
+
 import requests
 from bs4 import BeautifulSoup
+
+
+from itertools import product
+
+import re
+
+from words  import BAD_WORDS
 
 db = sqlite3.connect('base.db')
 c = db.cursor()
@@ -70,9 +71,6 @@ async def startCmd(message: Message, state: FSMContext):
         db.commit()
         await message.answer('Привет! Это бот сайта our.fishing\nЗдесь вы можете получать уведомления о новых статьях. Вы хотите получать их?', reply_markup=kb.acceptKeyboard)
         await state.set_state(accepting.acceptNofs)
-    #if int(message.from_user.id) == int(admin):
-     #   c.execute(f'UPDATE baseusers SET is_admin = ? WHERE user_id = {message.from_user.id}', ('1'))
-      #  await message.answer('Теперь вы админ!')
 
 @router.message(menuStates.waiting, F.text == 'Выключить/Выключить уведомления')
 async def changeOffOn(message: Message, state: FSMContext):
@@ -155,6 +153,7 @@ async def sendingtousers(message: Message, state: FSMContext):
             print(ex)
             await state.clear()
 code = ''
+
 try:
     url = 'https://our.fishing/blog/'
     response = requests.get(url)
@@ -192,10 +191,7 @@ async def updating(message: Message):
                     autor = soup.find('div', class_='info-right-img').find('span', class_='font-sm font-bold color-brand-1 op-70').text.strip()
                     link = new_article_el.find('a').get('href')
                     last_article = new_article
-                    #IDs = c.execute('SELECT user_id FROM baseusers WHERE user_accept = 1').fetchall()
                     autor = ' '.join(autor.split())
-                    #print(IDs)
-                    #for user in IDs:
                     await message.bot.send_message(-1002246594000,f'Вышла новая статья "{new_article}"\n от {autor}!\nЧитать: https://our.fishing/blog/{link}')
                     await message.answer('Готово!')
                 else:
@@ -232,7 +228,7 @@ async def updatingSched(message: Message):
                 autor = ' '.join(autor.split())
                 # print(IDs)
                 # for user in IDs:
-                await message.bot.send_message(-1002246594000, f'Новая статья "{new_article}"\nот {autor}!\nПерейти к статье: https://our.fishing/blog/{link}')
+                await message.bot.send_message(-1002246594000,f'Вышла новая статья "{new_article}"\n от {autor}!\nЧитать: https://our.fishing/blog/{link}')
             else:
                 print("No new article detected.")
         else:
@@ -290,6 +286,75 @@ async def making_new_admin_final(message: Message, state: FSMContext):
 async def cancel_admin(message: Message, state: FSMContext):
     await message.answer('Отменяю')
     await state.clear()
+
+
+@router.message(Command('getId', prefix='$'))
+async def getChatId(message: Message):
+    await message.answer(str(message.chat.id))
+
+@router.message(F.text)
+async def check(message: Message):
+    try:
+        translated_text = ''
+        char_map = {'а': ['а', 'a', '@'],
+             'б': ['б', '6', 'b'],
+             'в': ['в', 'b', 'v'],
+             'г': ['г', 'r', 'g'],
+             'д': ['д', 'd', 'g'],
+             'е': ['е', 'e'],
+             'ё': ['ё', 'e'],
+             'ж': ['ж', 'zh', '*'],
+             'з': ['з', '3', 'z'],
+             'и': ['и', 'u', 'i'],
+             'й': ['й', 'u', 'i'],
+             'к': ['к', 'k', 'i{', '|{'],
+             'л': ['л', 'l', 'ji'],
+             'м': ['м', 'm'],
+             'н': ['н', 'h', 'n'],
+             'о': ['о', 'o', '0'],
+             'п': ['п', 'n', 'p'],
+             'р': ['р', 'r', 'p'],
+             'с': ['с', 'c', 's'],
+             'т': ['т', 'm', 't'],
+             'у': ['у', 'y', 'u'],
+             'ф': ['ф', 'f'],
+             'х': ['х', 'x', 'h', '}{'],
+             'ц': ['ц', 'c', 'u,'],
+             'ч': ['ч', 'ch'],
+             'ш': ['ш', 'sh'],
+             'щ': ['щ', 'sch'],
+             'ь': ['ь', 'b'],
+             'ы': ['ы', 'bi'],
+             'ъ': ['ъ'],
+             'э': ['э', 'e'],
+             'ю': ['ю', 'io'],
+             'я': ['я', 'ya']
+             }
+
+        if str(message.chat.id) == '-1002163980111':
+            print('chat')
+            for word in BAD_WORDS:
+                print(f'checking{word}')
+                translated_texts = [''.join(variant) for variant in product(*(char_map.get(char, [char]) for char in word))]
+                for translated_text in translated_texts:
+                    if translated_text in message.text.lower():
+                        await message.bot.delete_message(chat_id=message.chat.id, message_id=message.message_id)
+                        #break
+                    else:
+                        url_pattern = re.compile(r'(https?://(?:[-\w.]|(?:%[\da-fA-F]{2}))+|\b(?:[a-zA-Z0-9-]+\.)+[a-zA-Z]{2,6}\b)')
+                        urls = re.findall(url_pattern, message.text.lower())
+                        if urls:
+                            await message.bot.delete_message(chat_id=message.chat.id, message_id=message.message_id)
+                        else:
+                            username_pattern = re.compile(r'@\w+')
+                            usernames = re.findall(username_pattern, message.text.lower())
+                            if usernames:
+                                await message.bot.delete_message(chat_id=message.chat.id, message_id=message.message_id)
+
+
+    except Exception as ex:
+        pass
+
 
 #@router.message()
 #async def catch_all(message: Message):
