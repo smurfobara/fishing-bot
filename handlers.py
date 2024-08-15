@@ -1,10 +1,10 @@
+import aiogram.exceptions
 from aiogram import F, Router, types
 from aiogram.filters import CommandStart, Command
 from aiogram.types import Message, CallbackQuery
 from aiogram.fsm.state import StatesGroup, State
 from aiogram.fsm.context import FSMContext
 import logging
-from config import admin
 import sqlite3
 import re 
 from datetime import *
@@ -72,26 +72,17 @@ async def startCmd(message: Message, state: FSMContext):
         await message.answer('Привет! Это бот сайта our.fishing\nЗдесь вы можете получать уведомления о новых статьях. Вы хотите получать их?', reply_markup=kb.acceptKeyboard)
         await state.set_state(accepting.acceptNofs)
 
-@router.message(menuStates.waiting, F.text == 'Выключить/Выключить уведомления')
-async def changeOffOn(message: Message, state: FSMContext):
-    try:
-        if int(c.execute(f'SELECT user_accept FROM baseusers WHERE user_id = {message.from_user.id}').fetchone()[0]) == 1:
-            c.execute(f'UPDATE baseusers SET user_accept = ? WHERE user_id = {message.from_user.id}', ('0'))
-            db.commit()
-            await message.answer('Успешно! Теперь Вам <b>не будут</b> приходить уведомления о новых статьях. Если нужно вернуться в меню, введите /start', reply_markup=types.reply_keyboard_remove.ReplyKeyboardRemove(), parse_mode='HTML')
-            await state.clear()
-        elif int(c.execute(f'SELECT user_accept FROM baseusers WHERE user_id = {message.from_user.id}').fetchone()[0]) == 0:
-            c.execute(f'UPDATE baseusers SET user_accept = ? WHERE user_id = {message.from_user.id}', ('1'))
-            db.commit()
-            await message.answer('Успешно! Теперь Вам <b>будут</b> приходить уведомления о новых статьях. Если нужно вернуться в меню, введите /start', reply_markup=types.reply_keyboard_remove.ReplyKeyboardRemove(), parse_mode='HTML')
-            await state.clear()
 
-    except Exception as ex:
-        await message.answer(f'Ой! Возникла ошибка. Скопируйте текст снизу и сообщите в поддержку, пожалуйста\n\n{str(ex)}')
+
 @router.message(menuStates.waiting, F.text == 'Написать в поддержку')
 async def messageToAdmins(message: Message, state: FSMContext):
-    await message.answer('Напишите свое сообщение для команды our.fishing. Если требуется, укажите контакты для обратной связи - электронную почту или телеграм.', reply_markup=types.reply_keyboard_remove.ReplyKeyboardRemove())
+    await message.answer('Напишите свое сообщение, или отправьте фото(подпись к фото тоже будет передана) для команды our.fishing. Если требуется, укажите контакты для обратной связи - электронную почту или телеграм.', reply_markup=types.reply_keyboard_remove.ReplyKeyboardRemove())
     await state.set_state(sendingMessageToAdmins.getMessage)
+
+@router.message(menuStates.waiting, F.text == 'Подписаться на рыбака')
+async def subscribeToFisherman(message: Message):
+    await message.answer('Скоро...')
+    await state.clear()
 
 @router.message(sendingMessageToAdmins.getMessage, F.text)
 async def sendMessageToAdmins(message: Message, state: FSMContext):
@@ -101,6 +92,20 @@ async def sendMessageToAdmins(message: Message, state: FSMContext):
         await message.bot.send_message(int(user[0]),f'Новое сообщение в поддержку: {message.text}')
     await message.answer('Ваше сообщение уже передано ответственным, спасибо!')
     await state.clear()
+
+
+@router.message(sendingMessageToAdmins.getMessage, F.photo)
+async def sendPhotoToadmins(message: Message, state: FSMContext):
+    photo_ID = message.photo[-1].file_id
+    photoCaption = message.caption
+    IDs = c.execute('SELECT user_id FROM baseusers WHERE is_admin = 1').fetchall()
+    print(IDs)
+    for user in IDs:
+        await message.bot.send_photo(int(user[0]),photo=photo_ID, caption=f'Новое сообщение в поддержку:{photoCaption}')
+    await message.answer('Ваше фото уже передано ответственным, спасибо!')
+    await state.clear()
+
+
 
 @router.message(menuStates.waiting, F.text == 'Перейти на сайт')
 async def goToSite(message: Message):
@@ -127,15 +132,15 @@ new_article = ''
 @router.message(Command('sendmessage', prefix='$'))
 async def getmessageforusers(message: Message, state: FSMContext):
     if int(c.execute(f'SELECT is_admin FROM baseusers WHERE user_id = {message.from_user.id}').fetchone()[0]) == 1:
-        await message.answer('Напишите ваше сообщение для пользователей, если нужно отменить операцию, введите 0\nМожно использовать теги HTML')
+        await message.answer('Напишите ваше сообщение или фото(с подписью) для пользователей, если нужно отменить операцию, введите 0\nМожно использовать теги HTML')
         await state.set_state(messageToUsers.getMessage)
 
 
 
 @router.message(messageToUsers.getMessage, F.text)
 async def sendingtousers(message: Message, state: FSMContext):
-    numus = 0
     try:
+        numus = 0
         if message.text != '0':
             await message.answer('Сообщение распознано, начинаю рассылку.')
             textForUsers = message.text
@@ -148,10 +153,29 @@ async def sendingtousers(message: Message, state: FSMContext):
         elif message.text == '0':
             await message.answer('Операция отменена!')
             await state.clear()
-    except Exception as ex:
-            await message.answer(f'ERROR!\n\n{ex}')
-            print(ex)
+    except aiogram.exceptions.TelegramBadRequest as ex:
+        pass
+
+@router.message(messageToUsers.getMessage, F.photo)
+async def sendingtousersPhoto(message: Message, state: FSMContext):
+    try:
+        numus = 0
+        if message.caption != '0':
+            await message.answer('Фото распознано, начинаю рассылку.')
+            photoID = message.photo[-1].file_id
+            textForUsers = message.caption
+            IDs = c.execute('SELECT user_id FROM baseusers').fetchall()
+            for user in IDs:
+                await message.bot.send_photo(int(user[0]), photo=photoID, caption=textForUsers, parse_mode='HTML')
+                numus = numus + 1
+            await message.answer(f'Рассылка завершена, сообщение отправлено {numus} юзерам.')
             await state.clear()
+        elif message.text == '0':
+            await message.answer('Операция отменена!')
+            await state.clear()
+    except aiogram.exceptions.TelegramBadRequest as ex:
+        pass
+
 code = ''
 
 try:
@@ -168,6 +192,9 @@ try:
     last_article = soup.find('div', class_='card-block-info').find('h5').text.strip()
 except Exception as ex:
     print(ex)
+
+
+
 @router.message(Command('update', prefix='$'))
 async def updating(message: Message):
     if int(c.execute(f'SELECT is_admin FROM baseusers WHERE user_id = {message.from_user.id}').fetchone()[0]) == 1:
@@ -292,7 +319,7 @@ async def cancel_admin(message: Message, state: FSMContext):
 async def getChatId(message: Message):
     await message.answer(str(message.chat.id))
 
-@router.message(F.text)
+"""@router.message(F.text)
 async def check(message: Message):
     try:
         translated_text = ''
@@ -353,7 +380,7 @@ async def check(message: Message):
 
 
     except Exception as ex:
-        pass
+        pass"""
 
 
 #@router.message()
