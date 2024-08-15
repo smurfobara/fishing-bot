@@ -319,7 +319,7 @@ async def cancel_admin(message: Message, state: FSMContext):
 async def getChatId(message: Message):
     await message.answer(str(message.chat.id))
 
-"""@router.message(F.text)
+@router.message(F.text)
 async def check(message: Message):
     try:
         translated_text = ''
@@ -380,7 +380,7 @@ async def check(message: Message):
 
 
     except Exception as ex:
-        pass"""
+        pass
 
 
 #@router.message()
