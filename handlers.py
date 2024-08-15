@@ -101,7 +101,7 @@ async def sendPhotoToadmins(message: Message, state: FSMContext):
     IDs = c.execute('SELECT user_id FROM baseusers WHERE is_admin = 1').fetchall()
     print(IDs)
     for user in IDs:
-        await message.bot.send_photo(int(user[0]),photo=photo_ID, caption=f'Новое сообщение в поддержку:{photoCaption}')
+        await message.bot.send_photo(int(user[0]),photo=photo_ID, caption=f'Новое сообщение в поддержку:{photoCaption}', parse_mode='HTML')
     await message.answer('Ваше фото уже передано ответственным, спасибо!')
     await state.clear()
 
