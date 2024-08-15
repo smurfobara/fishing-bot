@@ -81,7 +81,7 @@ async def messageToAdmins(message: Message, state: FSMContext):
 
 @router.message(menuStates.waiting, F.text == 'Подписаться на рыбака')
 async def subscribeToFisherman(message: Message, state: FSMContext):
-    await message.answer('Скоро...')
+    await message.answer('Скоро...', reply_markup=types.reply_keyboard_remove.ReplyKeyboardRemove())
     await state.clear()
 
 @router.message(sendingMessageToAdmins.getMessage, F.text)
