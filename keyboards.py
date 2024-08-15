@@ -8,9 +8,9 @@ acceptKeyboard = ReplyKeyboardMarkup(keyboard=[
 ], resize_keyboard=True)
 
 menuKb = ReplyKeyboardMarkup(keyboard=[
-    [KeyboardButton(text='Выключить/Выключить уведомления')],
     [KeyboardButton(text='Написать в поддержку')],
-    [KeyboardButton(text='Перейти на сайт')]
+    [KeyboardButton(text='Перейти на сайт')],
+    [KeyboardButton(text='Подписаться на рыбака')]
 ], resize_keyboard=True)
 
 toSiteKb = InlineKeyboardMarkup(inline_keyboard=[
