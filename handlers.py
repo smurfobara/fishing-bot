@@ -106,7 +106,6 @@ async def sendPhotoToadmins(message: Message, state: FSMContext):
     await state.clear()
 
 
-
 @router.message(menuStates.waiting, F.text == 'Перейти на сайт')
 async def goToSite(message: Message):
     await message.answer('Чтобы перейти на наш рыболовный портал нажмите кнопку ниже', reply_markup=kb.toSiteKb)
@@ -383,8 +382,6 @@ async def check(message: Message):
         pass
 
 
-#@router.message()
-#async def catch_all(message: Message):
- #   await message.reply("Я вас не понял, давайте начнем заново? Нажмите здесь /start")
+
 
 
