@@ -63,20 +63,18 @@ class sendingMessageToAdmins(StatesGroup):
 async def startCmd(message: Message, state: FSMContext):
     c.execute('SELECT user_id FROM baseusers')
     userIDs = c.fetchall()
-    if str(message.from_user.id) in str(userIDs):
-        await message.reply('Здравствуйте, это меню бота портала our.fishing. Используйте кнопки ниже, если требуется что-то сделать.', reply_markup=kb.menuKb)
-        await state.set_state(menuStates.waiting)
-    else:
+    if str(message.from_user.id) not in str(userIDs):
         c.execute(f'INSERT INTO baseusers (name, surname, username, user_id, user_accept, is_admin) VALUES ("{message.from_user.first_name}", "{message.from_user.last_name}", "{message.from_user.username}", {message.from_user.id}, 0, 0)')
         db.commit()
-        await message.answer('Привет! Это бот сайта our.fishing\nЗдесь вы можете получать уведомления о новых статьях. Вы хотите получать их?', reply_markup=kb.acceptKeyboard)
-        await state.set_state(accepting.acceptNofs)
+
+    await message.reply('Здравствуйте, это меню бота портала our.fishing. Используйте кнопки ниже, если требуется что-то сделать.', reply_markup=kb.menuKb)
+    await state.set_state(menuStates.waiting)
 
 
 
 @router.message(menuStates.waiting, F.text == 'Написать в поддержку')
 async def messageToAdmins(message: Message, state: FSMContext):
-    await message.answer('Напишите свое сообщение, или отправьте фото(подпись к фото тоже будет передана) для команды our.fishing. Если требуется, укажите контакты для обратной связи - электронную почту или телеграм.', reply_markup=types.reply_keyboard_remove.ReplyKeyboardRemove())
+    await message.answer('Напишите свое сообщение, или отправьте фото(подпись к фото тоже будет передана) для команды our.fishing. Если требуется, укажите контакты для обратной связи - электронную почту или телеграм.', reply_markup=kb.cancel_kb)
     await state.set_state(sendingMessageToAdmins.getMessage)
 
 @router.message(menuStates.waiting, F.text == 'Подписаться на рыбака')
@@ -86,12 +84,16 @@ async def subscribeToFisherman(message: Message, state: FSMContext):
 
 @router.message(sendingMessageToAdmins.getMessage, F.text)
 async def sendMessageToAdmins(message: Message, state: FSMContext):
-    IDs = c.execute('SELECT user_id FROM baseusers WHERE is_admin = 1').fetchall()
-    print(IDs)
-    for user in IDs:
-        await message.bot.send_message(int(user[0]),f'Новое сообщение в поддержку: {message.text}')
-    await message.answer('Ваше сообщение уже передано ответственным, спасибо!')
-    await state.clear()
+   if message.text != 'Отменить':
+        IDs = c.execute('SELECT user_id FROM baseusers WHERE is_admin = 1').fetchall()
+        print(IDs)
+        for user in IDs:
+            await message.bot.send_message(int(user[0]),f'Новое сообщение в поддержку: {message.text}')
+        await message.answer('Ваше сообщение уже передано ответственным, спасибо!')
+        await state.clear()
+   else:
+       await message.answer('Отменяю операцию, Вы можете перейти в главное меню по команде /start', reply_markup=types.reply_keyboard_remove.ReplyKeyboardRemove())
+       await state.clear()
 
 
 @router.message(sendingMessageToAdmins.getMessage, F.photo)
@@ -110,12 +112,6 @@ async def sendPhotoToadmins(message: Message, state: FSMContext):
 async def goToSite(message: Message):
     await message.answer('Чтобы перейти на наш рыболовный портал нажмите кнопку ниже', reply_markup=kb.toSiteKb)
 
-@router.message(accepting.acceptNofs, F.text == 'Да')
-async def answerYes(message: Message, state: FSMContext):
-    c.execute(f'UPDATE baseusers SET user_accept = ? WHERE user_id = {message.from_user.id}', ('1'))
-    db.commit()
-    await state.clear()
-    await message.answer('Успешно! Теперь вам будут приходить уведомления о новых статьях.', reply_markup=types.reply_keyboard_remove.ReplyKeyboardRemove())
 
 @router.message(Command('showbase', prefix='$'))
 async def showbaseCmd(message: Message):
