@@ -7,7 +7,7 @@ from aiogram.fsm.context import FSMContext
 import logging
 import sqlite3
 import re 
-from datetime import *
+from datetime import datetime
 
 
 import requests
@@ -74,7 +74,7 @@ async def startCmd(message: Message, state: FSMContext):
 
 @router.message(menuStates.waiting, F.text == 'Написать в поддержку')
 async def messageToAdmins(message: Message, state: FSMContext):
-    await message.answer('Напишите свое сообщение, или отправьте фото(подпись к фото тоже будет передана) для команды our.fishing. Если требуется, укажите контакты для обратной связи - электронную почту или телеграм.', reply_markup=kb.cancel_kb)
+    await message.answer('Напишите свое сообщение, или отправьте фото(подпись к фото тоже будет передана) для команды our.fishing. Если требуется, укажите контакты для обратной связи - электронную почту или телеграм.', reply_markup=kb.cancel)
     await state.set_state(sendingMessageToAdmins.getMessage)
 
 @router.message(menuStates.waiting, F.text == 'Подписаться на рыбака')
@@ -193,6 +193,15 @@ except Exception as ex:
 @router.message(Command('update', prefix='$'))
 async def updating(message: Message):
     if int(c.execute(f'SELECT is_admin FROM baseusers WHERE user_id = {message.from_user.id}').fetchone()[0]) == 1:
+        isNight = False
+        current_time = datetime.now().time()
+        start_time = datetime.strptime("00:00", "%H:%M").time()
+        end_time = datetime.strptime("07:00", "%H:%M").time()
+        if start_time <= current_time < end_time:
+            isNight = True
+        else:
+            isNight = False
+
         global last_article
         global new_article
         code = ''
@@ -226,6 +235,15 @@ async def updating(message: Message):
 
 @router.channel_post(F.text == 'update')
 async def updatingSched(message: Message):
+    isNight = False
+    current_time = datetime.now().time()
+    start_time = datetime.strptime("00:00", "%H:%M").time()
+    end_time = datetime.strptime("07:00", "%H:%M").time()
+    if start_time <= current_time < end_time:
+        isNight = True
+    else:
+        isNight = False
+
     global last_article
     global new_article
     code = ''
@@ -250,7 +268,7 @@ async def updatingSched(message: Message):
                 autor = ' '.join(autor.split())
                 # print(IDs)
                 # for user in IDs:
-                await message.bot.send_message(-1002246594000,f'Вышла новая статья "{new_article}"\n от {autor}!\nЧитать: https://our.fishing/blog/{link}')
+                await message.bot.send_message(-1002246594000,f'Вышла новая статья "{new_article}"\n от {autor}!\nЧитать: https://our.fishing/blog/{link}', disable_notification=isNight)
             else:
                 print("No new article detected.")
         else:

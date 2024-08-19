@@ -16,3 +16,12 @@ menuKb = ReplyKeyboardMarkup(keyboard=[
 toSiteKb = InlineKeyboardMarkup(inline_keyboard=[
     [InlineKeyboardButton(text='Перейти на сайт', url='https://our.fishing')]
 ])
+
+yes_or_no_kb = ReplyKeyboardMarkup(keyboard=[
+    [KeyboardButton(text='Да')],
+    [KeyboardButton(text='Нет')]
+])
+
+cancel = ReplyKeyboardMarkup(keyboard=[
+    [KeyboardButton(text='Отменить')]
+])
