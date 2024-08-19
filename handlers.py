@@ -35,6 +35,12 @@ c.execute("""CREATE TABLE IF NOT EXISTS baseusers(
           is_admin integer
 )""")
 
+c.execute("""CREATE TABLE IF NOT EXISTS userMessage(
+          msgText text,
+          msgId integer,
+          user_id integer
+)""")
+
 
 
 router = Router()
@@ -61,14 +67,18 @@ class sendingMessageToAdmins(StatesGroup):
 
 @router.message(Command('start'))
 async def startCmd(message: Message, state: FSMContext):
-    c.execute('SELECT user_id FROM baseusers')
-    userIDs = c.fetchall()
-    if str(message.from_user.id) not in str(userIDs):
-        c.execute(f'INSERT INTO baseusers (name, surname, username, user_id, user_accept, is_admin) VALUES ("{message.from_user.first_name}", "{message.from_user.last_name}", "{message.from_user.username}", {message.from_user.id}, 0, 0)')
-        db.commit()
+    if message.chat.type == 'private':
+        c.execute('SELECT user_id FROM baseusers')
+        userIDs = c.fetchall()
+        if str(message.from_user.id) not in str(userIDs):
+            c.execute(f'INSERT INTO baseusers (name, surname, username, user_id, user_accept, is_admin) VALUES ("{message.from_user.first_name}", "{message.from_user.last_name}", "{message.from_user.username}", {message.from_user.id}, 0, 0)')
+            c.execute(f'INSERT INTO userMessage (msgText, msgId, user_id) VALUES ("0", 0, {message.chat.id})')
+            db.commit()
 
-    await message.reply('Здравствуйте, это меню бота портала our.fishing. Используйте кнопки ниже, если требуется что-то сделать.', reply_markup=kb.menuKb)
-    await state.set_state(menuStates.waiting)
+        await message.reply('Здравствуйте, это меню бота портала our.fishing. Используйте кнопки ниже, если требуется что-то сделать.', reply_markup=kb.menuKb)
+        await state.set_state(menuStates.waiting)
+    else:
+        await message.answer('С ботом можно разговаривать только в личных сообщениях🚫')
 
 
 
@@ -87,13 +97,27 @@ async def sendMessageToAdmins(message: Message, state: FSMContext):
    if message.text != 'Отменить':
         IDs = c.execute('SELECT user_id FROM baseusers WHERE is_admin = 1').fetchall()
         print(IDs)
+        userID = 0
+        userUsname = ''
+        userName = ''
+        userID = message.chat.id
+        userUsname = message.from_user.username
+        userName = message.from_user.first_name
         for user in IDs:
-            await message.bot.send_message(int(user[0]),f'Новое сообщение в поддержку: {message.text}')
+            await message.bot.send_message(int(user[0]),f'Новое сообщение в поддержку: {message.text}', reply_markup=kb.getOrNo)
+        c.execute(f'UPDATE userMessage SET msgText = ? WHERE user_id = {message.chat.id}', (f'{message.text}'))
+        db.commit()
         await message.answer('Ваше сообщение уже передано ответственным, спасибо!')
         await state.clear()
    else:
        await message.answer('Отменяю операцию, Вы можете перейти в главное меню по команде /start', reply_markup=types.reply_keyboard_remove.ReplyKeyboardRemove())
        await state.clear()
+
+#@router.message(F.text == 'Взять')
+#async def replyMessage(message: Message, state: FSMContext):
+ #   if int(c.execute(f'SELECT is_admin FROM baseusers WHERE user_id = {message.from_user.id}').fetchone()[0]) == 1:
+
+
 
 
 @router.message(sendingMessageToAdmins.getMessage, F.photo)
