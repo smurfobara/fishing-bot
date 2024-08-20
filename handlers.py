@@ -395,7 +395,7 @@ async def check(message: Message):
              'я': ['я', 'ya']
              }
 
-        if str(message.chat.id) == '5893427261': #-1002163980111':
+        if str(message.chat.id) == '-1002163980111':
             print('chat')
             for word in BAD_WORDS:
                 print(f'checking{word}')
