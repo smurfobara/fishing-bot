@@ -78,7 +78,7 @@ async def startCmd(message: Message, state: FSMContext):
         await message.reply('Здравствуйте, это меню бота портала our.fishing. Используйте кнопки ниже, если требуется что-то сделать.', reply_markup=kb.menuKb)
         await state.set_state(menuStates.waiting)
     else:
-        await message.answer('С ботом можно разговаривать только в личных сообщениях🚫')
+        await message.reply('С ботом можно разговаривать только в личных сообщениях🚫')
 
 
 
@@ -395,7 +395,7 @@ async def check(message: Message):
              'я': ['я', 'ya']
              }
 
-        if str(message.chat.id) == '-1002163980111':
+        if str(message.chat.id) == '5893427261': #-1002163980111':
             print('chat')
             for word in BAD_WORDS:
                 print(f'checking{word}')
@@ -403,7 +403,13 @@ async def check(message: Message):
                 for translated_text in translated_texts:
                     if translated_text in message.text.lower():
                         await message.bot.delete_message(chat_id=message.chat.id, message_id=message.message_id)
-                        #break
+                for word in BAD_WORDS:
+                    print(f'checking{word}')
+                    translated_texts = [''.join(variant) for variant in
+                                        product(*(char_map.get(char, [char]) for char in word))]
+                    for translated_text in translated_texts:
+                        if translated_text in message.from_user.full_name.lower():
+                            await message.bot.delete_message(chat_id=message.chat.id, message_id=message.message_id)
                     else:
                         url_pattern = re.compile(r'(https?://(?:[-\w.]|(?:%[\da-fA-F]{2}))+|\b(?:[a-zA-Z0-9-]+\.)+[a-zA-Z]{2,6}\b)')
                         urls = re.findall(url_pattern, message.text.lower())
