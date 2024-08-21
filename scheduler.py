@@ -20,5 +20,5 @@ scheduler.enter(1, 1, print_message)
 # Запускаем планировщик
 scheduler.run()
 
-
+#test
 bot.infinity_polling()

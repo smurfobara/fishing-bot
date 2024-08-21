@@ -405,8 +405,7 @@ async def check(message: Message):
                         await message.bot.delete_message(chat_id=message.chat.id, message_id=message.message_id)
                 for word in BAD_WORDS:
                     print(f'checking{word}')
-                    translated_texts = [''.join(variant) for variant in
-                                        product(*(char_map.get(char, [char]) for char in word))]
+                    translated_texts = [''.join(variant) for variant in product(*(char_map.get(char, [char]) for char in word))]
                     for translated_text in translated_texts:
                         if translated_text in message.from_user.full_name.lower():
                             await message.bot.delete_message(chat_id=message.chat.id, message_id=message.message_id)
