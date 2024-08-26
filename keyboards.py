@@ -1,5 +1,6 @@
 from aiogram.types import (ReplyKeyboardMarkup, KeyboardButton,
                             InlineKeyboardMarkup, InlineKeyboardButton)
+
 from aiogram.utils.keyboard import ReplyKeyboardBuilder, InlineKeyboardBuilder
 
 acceptKeyboard = ReplyKeyboardMarkup(keyboard=[
@@ -30,3 +31,15 @@ getOrNo = ReplyKeyboardMarkup(keyboard=[
     [KeyboardButton(text='Взять')],
     [KeyboardButton(text='Оставить другим')]
 ])
+
+changes = ReplyKeyboardMarkup(keyboard=[
+    [KeyboardButton(text='Добавить/изменить автора')],
+    [KeyboardButton(text='Удалить автора')]
+])
+
+async def kbBuild(list):
+    keyboard = ReplyKeyboardBuilder()
+    for button in list:
+        keyboard.add(KeyboardButton(text=button))
+    keyboard.add(KeyboardButton(text='Отменить'))
+    return keyboard.adjust(1).as_markup()

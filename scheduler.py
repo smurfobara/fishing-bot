@@ -17,6 +17,14 @@ def print_message():
 # Планируем первое выполнение через 2 минуты
 scheduler.enter(1, 1, print_message)
 
+def print_message():
+    print('working autors')
+    bot.send_message(-1002192441889, 'autorsUpdate')
+    # Планируем следующее выполнение через 1 минуту
+    scheduler.enter(3600, 1, print_message)
+# Планируем первое выполнение через 2 минуты
+scheduler.enter(1, 1, print_message)
+
 # Запускаем планировщик
 scheduler.run()
 
