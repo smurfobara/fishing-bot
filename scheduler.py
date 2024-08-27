@@ -8,25 +8,19 @@ import time
 scheduler = sched.scheduler(time.time, time.sleep)
 
 
-
-def print_message():
-    print('working')
+def updateArts():
     bot.send_message(-1002192441889, 'update')
-    # Планируем следующее выполнение через 1 минуту
-    scheduler.enter(60, 1, print_message)
-# Планируем первое выполнение через 2 минуты
-scheduler.enter(1, 1, print_message)
+    # Планируем повторное выполнение через минуту
+    scheduler.enter(60, 1, action1)
 
-def print_message():
-    print('working autors')
+def updateAutors():
     bot.send_message(-1002192441889, 'autorsUpdate')
-    # Планируем следующее выполнение через 1 минуту
-    scheduler.enter(3600, 1, print_message)
-# Планируем первое выполнение через 2 минуты
-scheduler.enter(3600, 1, print_message)
+    # Планируем повторное выполнение через час
+    scheduler.enter(3600, 1, action2)
+
+# Запускаем начальные задачи
+scheduler.enter(0, 1, action1)
+scheduler.enter(0, 1, action2)
 
 # Запускаем планировщик
 scheduler.run()
-
-#test
-bot.infinity_polling()
