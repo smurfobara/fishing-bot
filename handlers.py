@@ -449,7 +449,7 @@ async def updatingSched(message: Message):
             if IDs:
                 print('subscribes detected, starting send...')
                 for user in IDs:
-                    await message.bot.send_message(user[0], f'Вышла новая <a href={autorLink}>статья</a> {new_article} у {autor}!')
+                    await message.bot.send_message(user[0], f'Вышла новая <a href={autorLink}>статья</a> {new_article} у {autor}!', parse_mode='HTML')
                 print('fine')
             last_article = new_article
 
