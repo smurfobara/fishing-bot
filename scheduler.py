@@ -23,7 +23,7 @@ def print_message():
     # Планируем следующее выполнение через 1 минуту
     scheduler.enter(3600, 1, print_message)
 # Планируем первое выполнение через 2 минуты
-scheduler.enter(1, 1, print_message)
+scheduler.enter(3600, 1, print_message)
 
 # Запускаем планировщик
 scheduler.run()
