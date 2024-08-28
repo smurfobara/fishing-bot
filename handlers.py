@@ -453,7 +453,7 @@ async def updatingSched(message: Message):
                 print('fine')
             last_article = new_article
 
-            await message.bot.send_message(-1002246594000,f'Вышла новая статья "{new_article}"\n от {autor}!\nЧитать: https://our.fishing/blog/{link}', disable_notification=isNight)
+            await message.bot.send_message(-1002246594000,f'Вышла новая статья "{new_article}"\nот {autor}!\nЧитать: https://our.fishing/blog/{link}', disable_notification=isNight)
         else:
             print("No new article detected.")
 
