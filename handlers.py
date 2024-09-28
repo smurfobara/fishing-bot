@@ -479,6 +479,8 @@ async def updatingSched(message: Message):
                     reason = 'Содержание ссылки.'
                 elif result == 3:
                     reason = 'Содержание стоп слова и ссылки.'
+
+                last_article = new_article
                 for admin in admin_ids:
                     await message.bot.send_message(int(admin[0]), f'Статья по ссылке https://our.fishing/blog/{link} не была отправлена в канал по причине {reason}. Название статьи: {new_article}\n\nПроверьте данные!')
 
