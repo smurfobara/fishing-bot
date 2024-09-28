@@ -240,6 +240,18 @@ async def sendMessageToAdmins(message: Message, state: FSMContext):
 
 
 
+@router.message(Command('admins', prefix='$'))
+async def showAdmins(message: Message):
+    if int(c.execute(f'SELECT is_admin FROM baseusers WHERE user_id = {message.from_user.id}').fetchone()[0]) == 1:
+        await message.answer('Вы являетесь администратором!')
+        IDs = c.execute('SELECT user_id FROM baseusers WHERE is_admin = 1').fetchall()
+        print(IDs)
+        for user in IDs:
+            await message.answer(f'{user[0]}')
+
+    else:
+        await message.answer('У вас нет прав администратора!')
+
 @router.message(sendingMessageToAdmins.getMessage, F.photo)
 async def sendPhotoToadmins(message: Message, state: FSMContext):
     photo_ID = message.photo[-1].file_idё
@@ -436,29 +448,44 @@ async def updatingSched(message: Message):
         new_article_el = soup.find('div', class_='card-block-info').find('h5')
         if new_article != last_article:
             print(f"New article detected: {new_article}")
-            autor = soup.find('div', class_='info-right-img').find('span', class_='font-sm font-bold color-brand-1 op-70').text.strip()
-            autorObj = soup.find('div', class_='info-right-img').find('span', class_='font-sm font-bold color-brand-1 op-70')
-            link = new_article_el.find('a').get('href')
-            response = requests.get(f'https://our.fishing/blog/{link}')
-            soup = BeautifulSoup(response.content, 'html.parser')
-            autorLink = soup.find('div', class_='author d-flex align-items-center mr-30').find('a').get('href')
-            autorLink = f'https://our.fishing{autorLink}'
-            print(autorLink)
-            autor = ' '.join(autor.split())
-            IDs = c.execute(f'SELECT user_id FROM subscriptions WHERE link1 = "{autorLink}" OR link2 = "{autorLink}" OR link3 = "{autorLink}"').fetchall()
-            if IDs:
-                print('subscribes detected, starting send...')
-                for user in IDs:
-                    await message.bot.send_message(user[0], f'Вышла новая <a href="{autorLink}">статья</a> {new_article} у {autor}!', parse_mode='HTML')
-                print('fine')
-            last_article = new_article
+            text = new_article
+            response_type = None
+            result = check_text(text, response_type, BAD_WORDS)
+            if result == 0:
+                autor = soup.find('div', class_='info-right-img').find('span', class_='font-sm font-bold color-brand-1 op-70').text.strip()
+                autorObj = soup.find('div', class_='info-right-img').find('span', class_='font-sm font-bold color-brand-1 op-70')
+                link = new_article_el.find('a').get('href')
+                response = requests.get(f'https://our.fishing/blog/{link}')
+                soup = BeautifulSoup(response.content, 'html.parser')
+                autorLink = soup.find('div', class_='author d-flex align-items-center mr-30').find('a').get('href')
+                autorLink = f'https://our.fishing{autorLink}'
+                print(autorLink)
+                autor = ' '.join(autor.split())
+                IDs = c.execute(f'SELECT user_id FROM subscriptions WHERE link1 = "{autorLink}" OR link2 = "{autorLink}" OR link3 = "{autorLink}"').fetchall()
+                if IDs:
+                    print('subscribes detected, starting send...')
+                    for user in IDs:
+                        await message.bot.send_message(user[0], f'Вышла новая <a href="{autorLink}">статья</a> {new_article} у {autor}!', parse_mode='HTML')
+                    print('fine')
+                last_article = new_article
 
-            await message.bot.send_message(-1002246594000,f'Вышла новая статья "{new_article}"\nот {autor}!\nЧитать: https://our.fishing/blog/{link}', disable_notification=isNight)
+                await message.bot.send_message(-1002246594000,f'Вышла новая статья "{new_article}"\nот {autor}!\nЧитать: https://our.fishing/blog/{link}', disable_notification=isNight)
+            else:
+                print("error stop")
+                admin_ids = c.execute('SELECT user_id FROM baseusers WHERE is_admin = 1').fetchall()
+                if result == 1:
+                    reason = 'Содержание стоп-слов.'
+                elif result == 2:
+                    reason = 'Содержание ссылки.'
+                elif result == 3:
+                    reason = 'Содержание стоп слова и ссылки.'
+                for admin in admin_ids:
+                    await message.bot.send_message(int(admin[0]), f'Статья по ссылке https://our.fishing/blog/{link} не была отправлена в канал по причине {reason}. Название статьи: {new_article}\n\nПроверьте данные!')
+
         else:
-            print("No new article detected.")
+            print('no new articles')
 
-    else:
-        print(f"Ошибка: статус-код {response.status_code}")
+
 
 
 
@@ -559,71 +586,100 @@ async def getChatId(message: Message):
 
 @router.message(F.text)
 async def check(message: Message):
-    try:
-        translated_text = ''
-        char_map = {'а': ['а', 'a', '@'],
-             'б': ['б', '6', 'b'],
-             'в': ['в', 'b', 'v'],
-             'г': ['г', 'r', 'g'],
-             'д': ['д', 'd', 'g'],
-             'е': ['е', 'e'],
-             'ё': ['ё', 'e'],
-             'ж': ['ж', 'zh', '*'],
-             'з': ['з', '3', 'z'],
-             'и': ['и', 'u', 'i'],
-             'й': ['й', 'u', 'i'],
-             'к': ['к', 'k', 'i{', '|{'],
-             'л': ['л', 'l', 'ji'],
-             'м': ['м', 'm'],
-             'н': ['н', 'h', 'n'],
-             'о': ['о', 'o', '0'],
-             'п': ['п', 'n', 'p'],
-             'р': ['р', 'r', 'p'],
-             'с': ['с', 'c', 's'],
-             'т': ['т', 'm', 't'],
-             'у': ['у', 'y', 'u'],
-             'ф': ['ф', 'f'],
-             'х': ['х', 'x', 'h', '}{'],
-             'ц': ['ц', 'c', 'u,'],
-             'ч': ['ч', 'ch'],
-             'ш': ['ш', 'sh'],
-             'щ': ['щ', 'sch'],
-             'ь': ['ь', 'b'],
-             'ы': ['ы', 'bi'],
-             'ъ': ['ъ'],
-             'э': ['э', 'e'],
-             'ю': ['ю', 'io'],
-             'я': ['я', 'ya']
-             }
+    #if message.chat.id == -1002163980111:
+        response_type = None  # дополнительный параметр, пока не используется
+        text = message.text
+        result = check_text(text, response_type, BAD_WORDS)
 
-        if str(message.chat.id) == '-1002163980111':
-            print('chat')
-            for word in BAD_WORDS:
-                print(f'checking{word}')
-                translated_texts = [''.join(variant) for variant in product(*(char_map.get(char, [char]) for char in word))]
-                for translated_text in translated_texts:
-                    if translated_text in message.text.lower():
-                        await message.bot.delete_message(chat_id=message.chat.id, message_id=message.message_id)
-                for word in BAD_WORDS:
-                    print(f'checking{word}')
-                    translated_texts = [''.join(variant) for variant in product(*(char_map.get(char, [char]) for char in word))]
-                    for translated_text in translated_texts:
-                        if translated_text in message.from_user.full_name.lower():
-                            await message.bot.delete_message(chat_id=message.chat.id, message_id=message.message_id)
-                    else:
-                        url_pattern = re.compile(r'(https?://(?:[-\w.]|(?:%[\da-fA-F]{2}))+|\b(?:[a-zA-Z0-9-]+\.)+[a-zA-Z]{2,6}\b)')
-                        urls = re.findall(url_pattern, message.text.lower())
-                        if urls:
-                            await message.bot.delete_message(chat_id=message.chat.id, message_id=message.message_id)
-                        else:
-                            username_pattern = re.compile(r'@\w+')
-                            usernames = re.findall(username_pattern, message.text.lower())
-                            if usernames:
-                                await message.bot.delete_message(chat_id=message.chat.id, message_id=message.message_id)
+        if result >= 1:
+            await message.bot.delete_message(chat_id=message.chat.id, message_id=message.message_id)
+            if result == 1:
+                reason = 'Содержание стоп-слов.'
+            elif result == 2:
+                reason = 'Содержание ссылки.'
+            elif result == 3:
+                reason = 'Содержание стоп слова и ссылки. В следующий раз Вы можете быть заблокированы за это!'
+
+            try:
+                admin_ids = c.execute('SELECT user_id FROM baseusers WHERE is_admin = 1').fetchall()
+                for admin in admin_ids:
+                    await message.bot.send_message(int(admin[0]), f'Сообщение пользователя {message.from_user.full_name} {message.from_user.username} было удалено с кодом {result} {reason}. Его текст: {message.text}')
+
+                await message.bot.send_message(message.from_user.id, f'Ваше сообщение в группе our.fishing было удалено по причине {reason}')
+            except Exception as e:
+                print(e)
 
 
-    except Exception as ex:
-        pass
+
+
+def check_text(text, response_type, BAD_WORDS):
+    # Встроенная карта символов для замены
+    char_map = {
+        'а': ['а', 'a', '@'],
+        'б': ['б', '6', 'b'],
+        'в': ['в', 'b', 'v'],
+        'г': ['г', 'r', 'g'],
+        'д': ['д', 'd', 'g'],
+        'е': ['е', 'e'],
+        'ё': ['ё', 'e'],
+        'ж': ['ж', 'zh', '*'],
+        'з': ['з', '3', 'z'],
+        'и': ['и', 'u', 'i'],
+        'й': ['й', 'u', 'i'],
+        'к': ['к', 'k', 'i{', '|{'],
+        'л': ['л', 'l', 'ji'],
+        'м': ['м', 'm'],
+        'н': ['н', 'h', 'n'],
+        'о': ['о', 'o', '0'],
+        'п': ['п', 'n', 'p'],
+        'р': ['р', 'r', 'p'],
+        'с': ['с', 'c', 's'],
+        'т': ['т', 'm', 't'],
+        'у': ['у', 'y', 'u'],
+        'ф': ['ф', 'f'],
+        'х': ['х', 'x', 'h', '}{'],
+        'ц': ['ц', 'c', 'u,'],
+        'ч': ['ч', 'ch'],
+        'ш': ['ш', 'sh'],
+        'щ': ['щ', 'sch'],
+        'ь': ['ь', 'b'],
+        'ы': ['ы', 'bi'],
+        'ъ': ['ъ'],
+        'э': ['э', 'e'],
+        'ю': ['ю', 'io'],
+        'я': ['я', 'ya']
+    }
+
+    # Проверка на наличие запрещенных слов
+    def contains_bad_word(text, bad_words, char_map):
+        for word in bad_words:
+            translated_texts = [''.join(variant) for variant in product(*(char_map.get(char, [char]) for char in word))]
+            for translated_text in translated_texts:
+                if translated_text in text:
+                    return True
+        return False
+
+    # Проверка на наличие URL
+    def contains_url(text):
+        url_pattern = re.compile(r'(https?://(?:[-\w.]|(?:%[\da-fA-F]{2}))+|\b(?:[a-zA-Z0-9-]+\.)+[a-zA-Z]{2,6}\b)')
+        urls = re.findall(url_pattern, text)
+        return bool(urls)
+
+    # Приведение текста к нижнему регистру для проверки
+    text_lower = text.lower()
+
+    has_bad_words = contains_bad_word(text_lower, BAD_WORDS, char_map)
+    has_url = contains_url(text_lower)
+
+    # Возвращение результата в зависимости от найденных данных
+    if has_bad_words and has_url:
+        return 3  # Есть и запрещенные слова, и ссылки
+    elif has_bad_words:
+        return 1  # Есть запрещенные слова
+    elif has_url:
+        return 2  # Есть ссылки
+    else:
+        return 0  # Нет ни запрещенных слов, ни ссылок
 
 
 
