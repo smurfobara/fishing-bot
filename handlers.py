@@ -450,7 +450,8 @@ async def updatingSched(message: Message):
             print(f"New article detected: {new_article}")
             text = new_article
             response_type = None
-            result = check_text(text, response_type, BAD_WORDS)
+            msg = message
+            result = check_text(text, response_type, BAD_WORDS, msg)
             if result == 0:
                 autor = soup.find('div', class_='info-right-img').find('span', class_='font-sm font-bold color-brand-1 op-70').text.strip()
                 autorObj = soup.find('div', class_='info-right-img').find('span', class_='font-sm font-bold color-brand-1 op-70')
@@ -591,7 +592,8 @@ async def check(message: Message):
     #if message.chat.id == -1002163980111:
         response_type = None  # дополнительный параметр, пока не используется
         text = message.text
-        result = check_text(text, response_type, BAD_WORDS)
+        msg = message
+        result = check_text(text, response_type, BAD_WORDS, msg)
 
         if result >= 1:
             await message.bot.delete_message(chat_id=message.chat.id, message_id=message.message_id)
@@ -614,7 +616,7 @@ async def check(message: Message):
 
 
 
-def check_text(text, response_type, BAD_WORDS):
+def check_text(text, response_type, BAD_WORDS, msg):
     # Встроенная карта символов для замены
     char_map = {
         'а': ['а', 'a', '@'],
@@ -662,7 +664,7 @@ def check_text(text, response_type, BAD_WORDS):
         return False
 
     # Проверка на наличие URL
-    def contains_url(text):
+    def contains_url(text, msg):
         url_pattern = re.compile(r'(https?://(?:[-\w.]|(?:%[\da-fA-F]{2}))+|\b(?:[a-zA-Z0-9-]+\.)+[a-zA-Z]{2,6}\b)')
         urls = re.findall(url_pattern, text)
         if message.from_user.first_name != 'Telegram':
