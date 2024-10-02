@@ -667,7 +667,7 @@ def check_text(text, response_type, BAD_WORDS, msg):
     def contains_url(text, msg):
         url_pattern = re.compile(r'(https?://(?:[-\w.]|(?:%[\da-fA-F]{2}))+|\b(?:[a-zA-Z0-9-]+\.)+[a-zA-Z]{2,6}\b)')
         urls = re.findall(url_pattern, text)
-        if message.from_user.first_name != 'Telegram':
+        if msg.from_user.first_name != 'Telegram':
             return bool(urls)
 
     # Приведение текста к нижнему регистру для проверки
