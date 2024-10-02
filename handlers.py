@@ -448,7 +448,7 @@ async def updatingSched(message: Message):
         new_article_el = soup.find('div', class_='card-block-info').find('h5')
         if new_article != last_article:
             print(f"New article detected: {new_article}")
-            result = check_text(text = new_article, response_type = None, BAD_WORDS = BAD_WORDS, user = message.from_user.first_name)
+            result = check_text(text = new_article, response_type = None, BAD_WORDS = BAD_WORDS)
             if result == 0:
                 autor = soup.find('div', class_='info-right-img').find('span', class_='font-sm font-bold color-brand-1 op-70').text.strip()
                 autorObj = soup.find('div', class_='info-right-img').find('span', class_='font-sm font-bold color-brand-1 op-70')
@@ -613,7 +613,7 @@ async def check(message: Message):
 
 
 
-def check_text(text, response_type, BAD_WORDS, user):
+def check_text(text, response_type, BAD_WORDS, user = '0'):
     # Встроенная карта символов для замены
     char_map = {
         'а': ['а', 'a', '@'],
