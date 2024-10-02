@@ -448,7 +448,7 @@ async def updatingSched(message: Message):
         new_article_el = soup.find('div', class_='card-block-info').find('h5')
         if new_article != last_article:
             print(f"New article detected: {new_article}")
-            result = check_text(text = new_article, response_type = None, BAD_WORDS = BAD_WORDS, msg = message)
+            result = check_text(text = new_article, response_type = None, BAD_WORDS = BAD_WORDS, user = message.from_user.first_name)
             if result == 0:
                 autor = soup.find('div', class_='info-right-img').find('span', class_='font-sm font-bold color-brand-1 op-70').text.strip()
                 autorObj = soup.find('div', class_='info-right-img').find('span', class_='font-sm font-bold color-brand-1 op-70')
@@ -589,8 +589,8 @@ async def check(message: Message):
     #if message.chat.id == -1002163980111:
         response_type = None  # дополнительный параметр, пока не используется
         text = message.text
-        msg = message
-        result = check_text(text, response_type, BAD_WORDS, msg)
+        user = message.from_user.first_name
+        result = check_text(text, response_type, BAD_WORDS, user)
 
         if result >= 1:
             await message.bot.delete_message(chat_id=message.chat.id, message_id=message.message_id)
@@ -613,7 +613,7 @@ async def check(message: Message):
 
 
 
-def check_text(text, response_type, BAD_WORDS, msg):
+def check_text(text, response_type, BAD_WORDS, user):
     # Встроенная карта символов для замены
     char_map = {
         'а': ['а', 'a', '@'],
@@ -661,10 +661,10 @@ def check_text(text, response_type, BAD_WORDS, msg):
         return False
 
     # Проверка на наличие URL
-    def contains_url(msg):
+    def contains_url(user):
         url_pattern = re.compile(r'(https?://(?:[-\w.]|(?:%[\da-fA-F]{2}))+|\b(?:[a-zA-Z0-9-]+\.)+[a-zA-Z]{2,6}\b)')
         urls = re.findall(url_pattern, text)
-        if msg.from_user.first_name != 'Telegram':
+        if user != 'Telegram':
             return bool(urls)
 
     # Приведение текста к нижнему регистру для проверки
