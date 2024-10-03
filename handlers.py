@@ -592,7 +592,7 @@ async def check(message: Message):
         user = message.from_user.first_name
         result = check_text(text, response_type, BAD_WORDS, user)
 
-        if result >= 1:
+        if result >= 1 and 'Telegram' not in message.from_user.full_name:
             await message.bot.delete_message(chat_id=message.chat.id, message_id=message.message_id)
             if result == 1:
                 reason = 'Содержание стоп-слов.'
@@ -664,8 +664,7 @@ def check_text(text, response_type, BAD_WORDS, user = '0'):
     def contains_url(user):
         url_pattern = re.compile(r'(https?://(?:[-\w.]|(?:%[\da-fA-F]{2}))+|\b(?:[a-zA-Z0-9-]+\.)+[a-zA-Z]{2,6}\b)')
         urls = re.findall(url_pattern, text)
-        if user != 'Telegram':
-            return bool(urls)
+        return bool(urls)
 
     # Приведение текста к нижнему регистру для проверки
     text_lower = text.lower()
