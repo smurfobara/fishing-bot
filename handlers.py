@@ -88,7 +88,9 @@ async def startCmd(message: Message, state: FSMContext):
             if str(message.from_user.id) not in str(userIDs):
                 c.execute(f'INSERT INTO baseusers (name, surname, username, user_id, user_accept, is_admin) VALUES ("{message.from_user.first_name}", "{message.from_user.last_name}", "{message.from_user.username}", {message.from_user.id}, 0, 0)')
             else:
-                c.execute(f'UPDATE baseusers SET name, surname, username, user_id WHERE user_id = {message.from_user.id}', (f"{message.from_user.first_name}", f"{message.from_user.last_name}", f"{message.from_user.username}", f"{message.from_user.id})"))
+                c.execute(f'UPDATE baseusers SET name = ?, surname = ?, username = ?, user_id = ? WHERE user_id = ?',
+                          (message.from_user.first_name, message.from_user.last_name, message.from_user.username,
+                           message.from_user.id, message.from_user.id))
                 db.commit()
 
             if str(message.from_user.id) not in str(c.execute('SELECT user_id FROM subscriptions').fetchall()):
