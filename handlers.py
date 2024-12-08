@@ -6,7 +6,8 @@ from aiogram.fsm.state import StatesGroup, State
 from aiogram.fsm.context import FSMContext
 import logging
 import sqlite3
-import re 
+import censorship
+
 from datetime import datetime
 
 
@@ -16,9 +17,7 @@ from bs4 import BeautifulSoup
 
 from itertools import product
 
-import re
-
-from words  import BAD_WORDS
+import scrap
 
 db = sqlite3.connect('base.db')
 c = db.cursor()
@@ -51,8 +50,6 @@ router = Router()
 
 
 
-cleaned_autors = []
-cleaned_links = []
 
 class accepting(StatesGroup):
     acceptNofs = State()
@@ -90,10 +87,15 @@ async def startCmd(message: Message, state: FSMContext):
             userIDs = c.fetchall()
             if str(message.from_user.id) not in str(userIDs):
                 c.execute(f'INSERT INTO baseusers (name, surname, username, user_id, user_accept, is_admin) VALUES ("{message.from_user.first_name}", "{message.from_user.last_name}", "{message.from_user.username}", {message.from_user.id}, 0, 0)')
+            else:
+                c.execute(f'UPDATE baseusers SET name, surname, username, user_id WHERE user_id = {message.from_user.id}', (f"{message.from_user.first_name}", f"{message.from_user.last_name}", f"{message.from_user.username}", f"{message.from_user.id})"))
+                db.commit()
+
             if str(message.from_user.id) not in str(c.execute('SELECT user_id FROM subscriptions').fetchall()):
                 c.execute(f'INSERT INTO subscriptions (profile1, link1, profile2, link2, profile3, link3, user_id) VALUES ("0", "0", "0", "0", "0", "0", {message.chat.id})')
                 #c.execute(f'INSERT INTO userMessage (msgText, msgId, user_id) VALUES ("0", 0, {message.chat.id})')
                 db.commit()
+
 
             await message.reply('Здравствуйте, это меню бота портала our.fishing. Используйте кнопки ниже, если требуется что-то сделать.', reply_markup=kb.menuKb)
             await state.set_state(menuStates.waiting)
@@ -177,7 +179,7 @@ async def getTextSub(message: Message, state: FSMContext):
     mbAutors = []
     if message.text != 'Отменить':
         if len(message.text) >= 4:
-            for autor in cleaned_autors:
+            for autor in autors["names"]:
                 if message.text.lower().strip() in autor.lower().strip():
                     print(autor)
                     mbAutors.append(autor)
@@ -197,10 +199,10 @@ async def choosingFisher(message: Message, state: FSMContext):
         if message.text != 'Отменить':
             isFinded = False
             iterat = 0
-            for autor in cleaned_autors:
+            for autor in autors["names"]:
                 if message.text == autor:
                     c.execute(f'UPDATE subscriptions SET profile{str(id_)} = ? WHERE user_id = {message.from_user.id}', (autor,))
-                    c.execute(f'UPDATE subscriptions SET link{str(id_)} = ? WHERE user_id = {message.from_user.id}', (cleaned_links[iterat],))
+                    c.execute(f'UPDATE subscriptions SET link{str(id_)} = ? WHERE user_id = {message.from_user.id}', (autors["links"][iterat],))
                     db.commit()
                     await message.answer('Готово!', reply_markup=types.reply_keyboard_remove.ReplyKeyboardRemove())
                     await state.clear()
@@ -275,8 +277,11 @@ async def showbaseCmd(message: Message):
         await message.answer(str(c.execute('SELECT * FROM baseusers').fetchall()))
         await message.answer(str(c.execute('SELECT * FROM subscriptions').fetchall()))
 
-last_article = ''
-new_article = ''
+
+
+last_article = scrap.checkNewArticle()
+last_trophy = scrap.findLastTrophy()
+autors = scrap.getAutorsList()
 
 last_articles_sub = []
 last_autors_sub = []
@@ -368,166 +373,77 @@ async def sendingtousersPhoto(message: Message, state: FSMContext):
 
 
 
-response = requests.get('https://our.fishing/blog/')
-    # Проверяем, что запрос успешен (статус-код 200)
-print(response.status_code)
-if response.status_code == 200:
-    code = response.text
-else:
-    print(f"Ошибка: статус-код {response.status_code}")
-    print(f"Ошибка запроса: {e}")
-soup = BeautifulSoup(response.content, 'html.parser')
-last_article = soup.find('div', class_='card-block-info').find('h5').text.strip()
-
-it = 1
-autors = []
-links = []
-link = ''
-    # Получаем первую страницу для инициализации
-response = requests.get(f'https://our.fishing/fishermans/?page={it}')
-if response.status_code == 200:
-    soup = BeautifulSoup(response.content, 'html.parser')
-    numbers = soup.find_all('a', class_='pager-number')
-    pages = [int(number.text.strip()) for number in numbers]
-
-    for page in pages:
-        print(f'Парсинг страницы {page}')
-        response = requests.get(f'https://our.fishing/fishermans/?page={page}')
-        if response.status_code == 200:
-            soup = BeautifulSoup(response.content, 'html.parser')
-            autorsPage = soup.find_all('div', class_='card-profile pt-10')
-
-            for autorPage in autorsPage:
-                autor = autorPage.find('h5').text.strip()
-                autors.append(autor)
-                link = autorPage.find('a').get('href')
-                full_link = f'https://our.fishing{link}'
-                links.append(full_link)
-
-    cleaned_autors = [' '.join(item.split()).strip() for item in autors]
-    cleaned_links = [' '.join(item.split()).strip() for item in links]
-    print(cleaned_autors)
-    print(cleaned_links)
-
-
-
-
-
 code = ''
-
+isAgree = None
+isAgreeCode = 0
 
 @router.channel_post(F.text == 'update')
 async def updatingSched(message: Message):
-    isNight = False
-    current_time = datetime.now().time()
-    start_time = datetime.strptime("00:00", "%H:%M").time()
-    end_time = datetime.strptime("07:00", "%H:%M").time()
-    if start_time <= current_time < end_time:
-        isNight = True
-    else:
-        isNight = False
-    linksProfiles = []
     global last_article
-    global new_article
-    code = ''
-    autor = ''
-    link = ''
-    new_article_el = None
-    try:
-        response = requests.get('https://our.fishing/blog/')
-        # Проверяем, что запрос успешен (статус-код 200)
-    except Exception as ex:
-        print(ex)
+    global last_trophy
+    new_article = scrap.checkNewArticle()
+    new_trophy = scrap.findLastTrophy()
 
-    if response.status_code == 200:
-        iter_ = 0
-        print('starting check')
-        code = response.text
-        soup = BeautifulSoup(response.content, 'html.parser')
-        new_article = soup.find('div', class_='card-block-info').find('h5').text
-        new_article_el = soup.find('div', class_='card-block-info').find('h5')
-        if new_article != last_article:
-            print(f"New article detected: {new_article}")
-            result = check_text(text = new_article, response_type = None, BAD_WORDS = BAD_WORDS)
-            if result == 0:
-                autor = soup.find('div', class_='info-right-img').find('span', class_='font-sm font-bold color-brand-1 op-70').text.strip()
-                autorObj = soup.find('div', class_='info-right-img').find('span', class_='font-sm font-bold color-brand-1 op-70')
-                link = new_article_el.find('a').get('href')
-                response = requests.get(f'https://our.fishing/blog/{link}')
-                soup = BeautifulSoup(response.content, 'html.parser')
-                autorLink = soup.find('div', class_='author d-flex align-items-center mr-30').find('a').get('href')
-                autorLink = f'https://our.fishing{autorLink}'
-                print(autorLink)
-                autor = ' '.join(autor.split())
-                IDs = c.execute(f'SELECT user_id FROM subscriptions WHERE link1 = "{autorLink}" OR link2 = "{autorLink}" OR link3 = "{autorLink}"').fetchall()
-                if IDs:
-                    print('subscribes detected, starting send...')
-                    for user in IDs:
-                        await message.bot.send_message(user[0], f'Вышла новая <a href="{autorLink}">статья</a> {new_article} у {autor}!', parse_mode='HTML')
-                    print('fine')
-                last_article = new_article
+    if new_article['name'] != last_article['name']:
+        isAgree = None
+        isAgreeCode = 0
+        isAgree = censorship.check_text(new_article["name"])
+        if isAgree == 1:
+            isAgreeCode = isAgree
+            isAgree= 'Содержание стоп-слов.'
+        elif isAgree == 2:
+            isAgreeCode = isAgree
+            isAgree = 'Содержание ссылки.'
+        elif isAgree == 3:
+            isAgreeCode = isAgree
+            isAgree = 'Содержание стоп слова и ссылки.'
 
-                await message.bot.send_message(-1002246594000,f'Вышла новая статья "{new_article}"\nот {autor}!\nЧитать: https://our.fishing/blog/{link}', disable_notification=isNight)
-            else:
-                print("error stop")
-                admin_ids = c.execute('SELECT user_id FROM baseusers WHERE is_admin = 1').fetchall()
-                if result == 1:
-                    reason = 'Содержание стоп-слов.'
-                elif result == 2:
-                    reason = 'Содержание ссылки.'
-                elif result == 3:
-                    reason = 'Содержание стоп слова и ссылки.'
+        if isAgreeCode == 0:
+            await message.bot.send_message(-1002246594000, f'Вышла новая статья "{new_article["name"]}"\nот {new_article["autor"]}!\nЧитать: {new_article["href"]}')
+            print('article found and posted!')
+            last_article = new_article
+            print('equaling articles!')
 
-                last_article = new_article
-                for admin in admin_ids:
-                    await message.bot.send_message(int(admin[0]), f'Статья по ссылке https://our.fishing/blog/{link} не была отправлена в канал по причине {reason}. Название статьи: {new_article}\n\nПроверьте данные!')
+            IDs = c.execute(f'SELECT user_id FROM subscriptions WHERE link1 = "{new_article["autor_href"]}" OR link2 = "{new_article["autor_href"]}" OR link3 = "{new_article["autor_href"]}"').fetchall()
+            if IDs:
+                print('subscribes detected, starting send...')
+                for user in IDs:
+                    await message.bot.send_message(user[0], f'Вышла новая <a href="{autorLink}">статья</a> {new_article} у {autor}!', parse_mode='HTML')
+                print('fine')
+
+
 
         else:
-            print('no new articles')
+            admin_ids = c.execute('SELECT user_id FROM baseusers WHERE is_admin = 1').fetchall()
+            print('статья не пропущена')
+            print(str(admin_ids))
+            for admin in admin_ids:
+                await message.bot.send_message(int(admin[0]), f'Статья по ссылке {new_article["href"]} не была отправлена в канал по причине {isAgree}. Название статьи: {new_article["name"]}\n\nПроверьте данные!')
+            last_article = new_article
+    else:
+        print('no new articles')
 
+    if new_trophy["name"] != last_trophy["name"]:
+            await message.bot.send_message(5893427261, f'Кто-то поделился новым трофеем! {new_trophy["name"]}, {new_trophy["weight"]}.\nБольше информации по <a href="{new_trophy['href']}">ссылке</a>', parse_mode='HTML')
+            print('trophy found and posted!')
+            IDs = c.execute(
+                f'SELECT user_id FROM subscriptions WHERE link1 = "{new_trophy["autor_href"]}" OR link2 = "{new_trophy["autor_href"]}" OR link3 = "{new_trophy["autor_href"]}"').fetchall()
+            if IDs:
+                print('subscribes detected, starting send...')
+                for user in IDs:
+                    await message.bot.send_message(user[0], f'Кто-то поделился новым трофеем! {new_trophy["name"]}, {new_trophy["weight"]}.\nБольше информации по <a href="{new_trophy['href']}">ссылке</a>', parse_mode='HTML')
+            last_trophy = new_trophy
 
-
-
-
-
-
+    else:
+        print('no new trophys')
 
 
 
 
 @router.channel_post(F.text == 'autorsUpdate')
 async def updateAutors(message: Message):
-    it = 1
-    autors = []
-    global cleaned_autors
-    global cleaned_links
-    links = []
-    link = ''
-    # Получаем первую страницу для инициализации
-    response = requests.get(f'https://our.fishing/fishermans/?page={it}')
-    if response.status_code == 200:
-        soup = BeautifulSoup(response.content, 'html.parser')
-        numbers = soup.find_all('a', class_='pager-number')
-        pages = [int(number.text.strip()) for number in numbers]
-
-        for page in pages:
-            print(f'Парсинг страницы {page}')
-            response = requests.get(f'https://our.fishing/fishermans/?page={page}')
-            if response.status_code == 200:
-                soup = BeautifulSoup(response.content, 'html.parser')
-                autorsPage = soup.find_all('div', class_='card-profile pt-10')
-
-                for autorPage in autorsPage:
-                    autor = autorPage.find('h5').text.strip()
-                    autors.append(autor)
-                    link = autorPage.find('a').get('href')
-                    full_link = f'https://our.fishing{link}'
-                    links.append(full_link)
-
-        cleaned_autors = [' '.join(item.split()).strip() for item in autors]
-        cleaned_links = [' '.join(item.split()).strip() for item in links]
-        print(cleaned_autors)
-        print(cleaned_links)
+    global autors
+    autors = scrap.getAutorsList()
 
 
 id_of_new_adm = 0
@@ -610,77 +526,6 @@ async def check(message: Message):
             except Exception as e:
                 print(e)
 
-
-
-
-def check_text(text, response_type, BAD_WORDS, user = '0'):
-    # Встроенная карта символов для замены
-    char_map = {
-        'а': ['а', 'a', '@'],
-        'б': ['б', '6', 'b'],
-        'в': ['в', 'b', 'v'],
-        'г': ['г', 'r', 'g'],
-        'д': ['д', 'd', 'g'],
-        'е': ['е', 'e'],
-        'ё': ['ё', 'e'],
-        'ж': ['ж', 'zh', '*'],
-        'з': ['з', '3', 'z'],
-        'и': ['и', 'u', 'i'],
-        'й': ['й', 'u', 'i'],
-        'к': ['к', 'k', 'i{', '|{'],
-        'л': ['л', 'l', 'ji'],
-        'м': ['м', 'm'],
-        'н': ['н', 'h', 'n'],
-        'о': ['о', 'o', '0'],
-        'п': ['п', 'n', 'p'],
-        'р': ['р', 'r', 'p'],
-        'с': ['с', 'c', 's'],
-        'т': ['т', 'm', 't'],
-        'у': ['у', 'y', 'u'],
-        'ф': ['ф', 'f'],
-        'х': ['х', 'x', 'h', '}{'],
-        'ц': ['ц', 'c', 'u,'],
-        'ч': ['ч', 'ch'],
-        'ш': ['ш', 'sh'],
-        'щ': ['щ', 'sch'],
-        'ь': ['ь', 'b'],
-        'ы': ['ы', 'bi'],
-        'ъ': ['ъ'],
-        'э': ['э', 'e'],
-        'ю': ['ю', 'io'],
-        'я': ['я', 'ya']
-    }
-
-    # Проверка на наличие запрещенных слов
-    def contains_bad_word(text, bad_words, char_map):
-        for word in bad_words:
-            translated_texts = [''.join(variant) for variant in product(*(char_map.get(char, [char]) for char in word))]
-            for translated_text in translated_texts:
-                if translated_text in text:
-                    return True
-        return False
-
-    # Проверка на наличие URL
-    def contains_url(user):
-        url_pattern = re.compile(r'(https?://(?:[-\w.]|(?:%[\da-fA-F]{2}))+|\b(?:[a-zA-Z0-9-]+\.)+[a-zA-Z]{2,6}\b)')
-        urls = re.findall(url_pattern, text)
-        return bool(urls)
-
-    # Приведение текста к нижнему регистру для проверки
-    text_lower = text.lower()
-
-    has_bad_words = contains_bad_word(text_lower, BAD_WORDS, char_map)
-    has_url = contains_url(text_lower)
-
-    # Возвращение результата в зависимости от найденных данных
-    if has_bad_words and has_url:
-        return 3  # Есть и запрещенные слова, и ссылки
-    elif has_bad_words:
-        return 1  # Есть запрещенные слова
-    elif has_url:
-        return 2  # Есть ссылки
-    else:
-        return 0  # Нет ни запрещенных слов, ни ссылок
 
 
 
