@@ -424,7 +424,7 @@ async def updatingSched(message: Message):
         print('no new articles')
 
     if new_trophy["name"] != last_trophy["name"]:
-            await message.bot.send_message(5893427261, f'Кто-то поделился новым трофеем! {new_trophy["name"]}, {new_trophy["weight"]}.\nБольше информации по <a href="{new_trophy['href']}">ссылке</a>', parse_mode='HTML')
+            await message.bot.send_message(-1002246594000, f'Кто-то поделился новым трофеем! {new_trophy["name"]}, {new_trophy["weight"]}.\nБольше информации по <a href="{new_trophy['href']}">ссылке</a>', parse_mode='HTML')
             print('trophy found and posted!')
             IDs = c.execute(
                 f'SELECT user_id FROM subscriptions WHERE link1 = "{new_trophy["autor_href"]}" OR link2 = "{new_trophy["autor_href"]}" OR link3 = "{new_trophy["autor_href"]}"').fetchall()
